@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ГРОМКОЕ Малыш-Пианино</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+        .piano-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            padding: 15px;
+            gap: 15px;
+            background-color: #111;
+        }
+        .key {
+            flex: 1;
+            height: 100%;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.04s ease, filter 0.04s ease;
+            box-shadow: 0 20px 0 rgba(0,0,0,0.4), inset 0 -20px 25px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .key::after {
+            content: "";
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        .key.active {
+            transform: translateY(15px);
+            filter: brightness(1.5) saturate(1.3);
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2), inset 0 -15px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="piano-container" id="piano"></div>
+
+<script>
+    const keysData = [
+        { color: '#ff1744', note: 261.63 }, // До
+        { color: '#ff9100', note: 293.66 }, // Ре
+        { color: '#ffea00', note: 329.63 }, // Ми
+        { color: '#00e676', note: 349.23 }, // Фа
+        { color: '#00b0ff', note: 392.00 }, // Соль
+        { color: '#2979ff', note: 440.00 }, // Ля
+        { color: '#651fff', note: 493.88 }, // Си
+        { color: '#f50057', note: 523.25 }  // До
+    ];
+
+    const container = document.getElementById('piano');
+    let audioCtx = null;
+
+    function playLoudNote(frequency) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        // Два мощных генератора для пробивного звука
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc1.type = 'sawtooth'; 
+        osc1.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        
+        // Второй генератор звучит на октаву выше для сочности
+        osc2.type = 'square';   
+        osc2.frequency.setValueAtTime(frequency * 2, audioCtx.currentTime);
+        
+        // Устанавливаем высокую громкость
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        // Моментальная атака (громко сразу при нажатии)
+        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
+        // Чуть более долгое сочное затухание
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+        
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc1.start();
+        osc2.start();
+        osc1.stop(audioCtx.currentTime + 1.2);
+        osc2.stop(audioCtx.currentTime + 1.2);
+    }
+
+    keysData.forEach(data => {
+        const key = document.createElement('div');
+        key.classList.add('key');
+        key.style.backgroundColor = data.color;
+        
+        key.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            key.classList.add('active');
+            playLoudNote(data.note);
+        });
+
+        key.addEventListener('pointerup', () => key.classList.remove('active'));
+        key.addEventListener('pointerleave', () => key.classList.remove('active'));
+        key.addEventListener('pointercancel', () => key.classList.remove('active'));
+        
+        container.appendChild(key);
+    });
+</script>
+</body>
+</html>

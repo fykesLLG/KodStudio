@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Крушитель Башни! 💥</title>
+    <style>
+        /* Идеальная фиксация экрана планшета */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #29b6f6, #0288d1); /* Яркое голубое небо */
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        /* Земля/платформа, на которой стоит башня */
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 22vh;
+            background: linear-gradient(to bottom, #8d6e63, #4e342e);
+            border-top: 10px solid #81c784; /* Зеленая травка */
+            z-index: 1;
+        }
+
+        /* Счетчик вечного прогресса сломанных блоков */
+        .top-panel {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .counter {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 40px;
+            border-radius: 25px;
+            border: 4px solid #ffca28;
+            font-size: 32px;
+            color: #ff8f00;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-shadow: 1px 1px 0px #fff;
+        }
+
+        /* Контейнер для башни по центру */
+        .tower-container {
+            position: absolute;
+            bottom: 22vh; /* Начинается прямо над землей */
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column-reverse; /* Строим блоки снизу вверх */
+            align-items: center;
+            z-index: 2;
+        }
+
+        /* Стили огромных кубиков */
+        .brick {
+            width: 260px;
+            height: 85px;
+            border-radius: 16px;
+            margin-bottom: 2px;
+            box-shadow: inset -12px -12px 20px rgba(0,0,0,0.25), 
+                        inset 12px 12px 20px rgba(255,255,255,0.3),
+                        0 6px 10px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            /* Небольшие пупырышки как у Лего для красоты */
+            background-image: radial-gradient(circle, rgba(255,255,255,0.2) 20%, transparent 20%);
+            background-size: 40px 40px;
+        }
+
+        /* Специальный класс для нижнего блока, который нужно бить (он пульсирует) */
+        .brick.target {
+            animation: pulseTarget 1s infinite alternate;
+            border: 5px solid #fff;
+        }
+        @keyframes pulseTarget {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.04); box-shadow: 0 0 25px #fff, inset -12px -12px 20px rgba(0,0,0,0.25); }
+        }
+
+        /* Анимация выбитого кубика (улетает вбок с вращением) */
+        .brick.blast-left {
+            animation: blastL 0.35s ease-out forwards;
+            pointer-events: none;
+        }
+        .brick.blast-right {
+            animation: blastR 0.35s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes blastL {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-350px, -80px) rotate(-120deg); opacity: 0; scale: 0.6; }
+        }
+        @keyframes blastR {
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+            100% { transform: translate(350px, -80px) rotate(120deg); opacity: 0; scale: 0.6; }
+        }
+
+        /* Анимация падения башни вниз (когда нижний кубик исчез) */
+        .fall-down {
+            animation: dropDown 0.15s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes dropDown {
+            0% { transform: translateY(-87px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* Кусочки взрыва (искры) */
+        .spark {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 5;
+            animation: sparkGo 0.4s ease-out forwards;
+        }
+        @keyframes sparkGo {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Панель постоянного сохранения счета -->
+<div class="top-panel">
+    <div class="counter" id="crush-display">💥 СЛОМАНО: 0</div>
+</div>
+
+<!-- Башня из Лего-блоков -->
+<div class="tower-container" id="tower"></div>
+
+<!-- Земля под башней -->
+<div class="ground"></div>
+<script>
+    const tower = document.getElementById('tower');
+    const crushDisplay = document.getElementById('crush-display');
+
+    let crushedCount = 0;
+    let db = null;
+    let isCrushing = false; // Блокировка спама во время анимации падения башни
+
+    // Набор сочных цветов для лего-кубиков
+    const brickColors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#00abcd', '#009688', '#4caf50', '#8bc34a', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+
+    // База данных для вечного сохранения сломанных блоков
+    const request = indexedDB.open("BabyTowerCrushDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("progress", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadProgress();
+    };
+
+    function saveProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readwrite");
+        const store = tx.objectStore("progress");
+        store.put({ id: "crushed", val: crushedCount });
+    }
+
+    function loadProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readonly");
+        const store = tx.objectStore("progress");
+        const getReq = store.get("crushed");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                crushedCount = getReq.result.val;
+                crushDisplay.innerText = `💥 СЛОМАНО: ${crushedCount}`;
+            }
+        };
+    }
+
+    // Супер-громкий и сочный звук удара и разрушения деревянного/лего блока
+    let audioCtx = null;
+    function playCrushSound() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        // Смешиваем "пилу" для хруста и "треугольник" для плотности удара
+        osc1.type = 'sawtooth';
+        osc2.type = 'triangle';
+
+        osc1.frequency.setValueAtTime(220, audioCtx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+
+        osc2.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.15);
+
+        gain.gain.setValueAtTime(0.95, audioCtx.currentTime); // Максимально громко
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc1.start();
+        osc2.start();
+        osc1.stop(audioCtx.currentTime + 0.15);
+        osc2.stop(audioCtx.currentTime + 0.15);
+    }
+
+    // Создание одного кубика
+    function createBrick() {
+        const brick = document.createElement('div');
+        brick.classList.add('brick');
+        // Даём случайный яркий цвет
+        brick.style.backgroundColor = brickColors[Math.floor(Math.random() * brickColors.length)];
+        return brick;
+    }
+
+    // Первоначальная постройка башни (всего 7 блоков на экране)
+    function buildInitialTower() {
+        for (let i = 0; i < 7; i++) {
+            const brick = createBrick();
+            tower.appendChild(brick);
+        }
+        updateTargetBlock();
+    }
+
+    // Делаем самый нижний блок активной целью
+    function updateTargetBlock() {
+        const bricks = tower.querySelectorAll('.brick');
+        bricks.forEach(b => b.classList.remove('target'));
+        
+        if (bricks.length > 0) {
+            // Первый элемент в контейнере (поскольку reverse — это самый нижний блок)
+            const bottomBrick = bricks[0];
+            bottomBrick.classList.add('target');
+            
+            // Навешиваем событие клика/тача только на него, чтобы игра не баговала
+            bottomBrick.addEventListener('pointerdown', crushBottomBrick, { once: true });
+        }
+    }
+
+    // Логика разрушения нижнего блока
+    function crushBottomBrick(e) {
+        e.preventDefault();
+        if (isCrushing) return;
+        isCrushing = true;
+
+        const struckBrick = e.currentTarget;
+        
+        // Воспроизводим мощный звук удара
+        playCrushSound();
+
+        // Спецэффекты разлёта осколков
+        const rect = struckBrick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        createSparks(cx, cy, struckBrick.style.backgroundColor);
+
+        // Случайно выбираем, в какую сторону улетит разбитый кубик (влево или вправо)
+        const flyDirection = Math.random() > 0.5 ? 'blast-left' : 'blast-right';
+        struckBrick.classList.remove('target');
+        struckBrick.classList.add(flyDirection);
+
+        // Прибавляем очко
+        crushedCount++;
+        crushDisplay.innerText = `💥 СЛОМАНО: ${crushedCount}`;
+        saveProgress();
+
+        // Сверху башни сразу добавляем новый блок, пока нижний улетает
+        const newBrick = createBrick();
+        tower.appendChild(newBrick);
+
+        // Включаем анимацию плавного падения всей башни вниз
+        tower.classList.add('fall-down');
+
+        // Как только анимация падения и вылета кубика завершается (через 150мс)
+        setTimeout(() => {
+            // Полностью удаляем старый выбитый кубик из памяти
+            struckBrick.remove();
+            
+            // Сбрасываем класс анимации падения, чтобы её можно было применить снова
+            tower.classList.remove('fall-down');
+            
+            // Обновляем цель на новый нижний кубик и снимаем блокировку
+            updateTargetBlock();
+            isCrushing = false;
+        }, 150);
+    }
+
+    // Создание цветных лего-осколков при ударе
+    function createSparks(x, y, color) {
+        for (let i = 0; i < 15; i++) {
+            const spark = document.createElement('div');
+            spark.classList.add('spark');
+            spark.style.backgroundColor = color;
+            
+            // Случайный размер осколка
+            const size = Math.random() * 15 + 10;
+            spark.style.width = `${size}px`;
+            spark.style.height = `${size}px`;
+            
+            spark.style.left = `${x - size/2}px`;
+            spark.style.top = `${y - size/2}px`;
+
+            // Направление взрыва во все стороны
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 180 + 70;
+            spark.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+            spark.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+
+            document.body.appendChild(spark);
+            spark.addEventListener('animationend', () => spark.remove());
+        }
+    }
+
+    // Старт игры
+    buildInitialTower();
+</script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>День и Ночь ☀️🌙</title>
+    <style>
+        /* Полный сброс для планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #e0f2f1;
+        }
+
+        /* Мягкий, плавный переход между Днем и Ночью */
+        .sky-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: background 1.5s ease-in-out;
+            z-index: 1;
+        }
+        .sky-bg.day { background: linear-gradient(to bottom, #bbdefb, #e3f2fd); }
+        .sky-bg.night { background: linear-gradient(to bottom, #0d1b2a, #1b263b); }
+
+        /* Полянка с волшебными цветами (Вечный прогресс) */
+        .garden-panel {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-size: 26px;
+            color: #2e7d32;
+            border: 2px solid #a5d6a7;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        /* Большая, круглая, мягкая кнопка-переключатель в центре */
+        .switch-btn {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 110px;
+            background-color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 4px solid #fff;
+        }
+        .switch-btn:active { transform: translateX(-50%) scale(0.9); }
+
+        /* Интерактивные элементы неба (Облака для дня, Звезды для ночи) */
+        .sky-element {
+            position: absolute;
+            cursor: pointer;
+            z-index: 5;
+            transition: transform 0.5s ease, opacity 0.8s ease-in-out;
+            font-size: 80px; /* Крупные элементы, легко нажимать */
+        }
+
+        /* Анимация покачивания элементов, чтобы небо казалось живым */
+        .float-animation {
+            animation: slowFloat 4s ease-in-out infinite alternate;
+        }
+        @keyframes slowFloat {
+            0% { transform: translateY(0px) rotate(0deg); }
+            100% { transform: translateY(-15px) rotate(3deg); }
+        }
+
+        /* Эффект капелек дождя из облака или сияния звезды при нажатии */
+        .magic-particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 4;
+            font-size: 24px;
+            animation: fallOrFade 1s ease-out forwards;
+        }
+        @keyframes fallOrFade {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sky-bg day" id="sky">
+    <!-- Полянка с цветами -->
+    <div class="garden-panel" id="garden">
+        🌱 Сад цветов: 0
+    </div>
+
+    <!-- Главная кнопка мира -->
+    <div class="switch-btn" id="worldSwitch">☀️</div>
+    
+    <!-- Сюда JavaScript будет мягко добавлять облака или звёзды -->
+    <div id="skyObjectsContainer"></div>
+</div>
+<script>
+    const sky = document.getElementById('sky');
+    const worldSwitch = document.getElementById('worldSwitch');
+    const skyContainer = document.getElementById('skyObjectsContainer');
+    const gardenDisplay = document.getElementById('garden');
+
+    let isDay = true;
+    let flowerCount = 0;
+    let db = null;
+
+    // Спокойные детские символы для неба
+    const dayElements = ['☁️', '🌤️', '⛅'];
+    const nightElements = ['⭐', '🌟', '✨'];
+
+    // Подключение к IndexedDB для сохранения цветущего сада
+    const request = indexedDB.open("BabyGardenCalmDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("saveData", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadGarden();
+    };
+
+    function saveGarden() {
+        if (!db) return;
+        const tx = db.transaction("saveData", "readwrite");
+        const store = tx.objectStore("saveData");
+        store.put({ id: "flowers", val: flowerCount });
+    }
+
+    function loadGarden() {
+        if (!db) return;
+        const tx = db.transaction("saveData", "readonly");
+        const store = tx.objectStore("saveData");
+        const getReq = store.get("flowers");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                flowerCount = getReq.result.val;
+                updateGardenDisplay();
+            }
+        };
+    }
+
+    function updateGardenDisplay() {
+        let flowerString = '🌸'.repeat(Math.min(5, flowerCount));
+        if (flowerCount > 5) flowerString += ` +${flowerCount - 5}`;
+        gardenDisplay.innerHTML = `🌱 Сад цветов: ${flowerString || '0'}`;
+    }
+
+    // Мягкий, тихий звук музыкальной шкатулки / колокольчика
+    let audioCtx = null;
+    function playCalmBell(frequency) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine'; // Чистая, мягкая синусоида (без хруста и резкости)
+        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+        // Плавная атака и долгое, нежное затухание
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + 0.05); // Тихо
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.5);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.5);
+    }
+
+    // Заполнение неба объектами
+    function РефрешНеба() {
+        // Мягко очищаем старые объекты
+        skyContainer.innerHTML = '';
+        
+        const count = 4; // Всего 4 крупных элемента, чтобы глаза не разбегались
+        const items = isDay ? dayElements : nightElements;
+
+        for (let i = 0; i < count; i++) {
+            const el = document.createElement('div');
+            el.classList.add('sky-element', 'float-animation');
+            el.innerText = items[Math.floor(Math.random() * items.length)];
+
+            // Случайное, но аккуратное распределение по верхней половине экрана планшета
+            const left = 10 + (i * 22) + (Math.random() * 5);
+            const top = 12 + (Math.random() * 20);
+
+            el.style.left = `${left}%`;
+            el.style.top = `${top}vh`;
+            // Небольшая случайная задержка анимации, чтобы качались не синхронно
+            el.style.animationDelay = `${Math.random() * -4}s`;
+
+            // Нажатие на облачко или звёздочку
+            el.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                
+                // Проигрываем приятную случайную нотку из колыбельного лада
+                const notes = [329.63, 392.00, 440.00, 523.25, 587.33];
+                const randomNote = notes[Math.floor(Math.random() * notes.length)];
+                playCalmBell(randomNote);
+
+                // Визуальный отклик — лёгкий упругий прыжок элемента
+                el.style.transform = 'scale(1.3)';
+                setTimeout(() => { el.style.transform = ''; }, 300);
+
+                // Создаём мягкие капельки или сияние
+                const rect = el.getBoundingClientRect();
+                createMagicParticles(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+                // Выращиваем цветочек в саду
+                flowerCount++;
+                updateGardenDisplay();
+                saveGarden();
+            });
+
+            skyContainer.appendChild(el);
+        }
+    }
+
+    // Мягкие частицы (капли дождя для облаков, золотые блестки для звезд)
+    function createMagicParticles(x, y) {
+        const symbol = isDay ? '💧' : '✨';
+        for (let i = 0; i < 5; i++) {
+            const p = document.createElement('div');
+            p.classList.add('magic-particle');
+            p.innerText = symbol;
+            p.style.left = `${x - 12}px`;
+            p.style.top = `${y - 12}px`;
+
+            // Медленное движение вниз (для дождя) или в стороны (для звезд)
+            const dx = isDay ? (Math.random() * 30 - 15) : (Math.random() * 80 - 40);
+            const dy = isDay ? (Math.random() * 100 + 40) : (Math.random() * 80 - 40);
+
+            p.style.setProperty('--dx', `${dx}px`);
+            p.style.setProperty('--dy', `${dy}px`);
+
+            document.body.appendChild(p);
+            p.addEventListener('animationend', () => p.remove());
+        }
+    }
+
+    // Клик по главному переключателю мира
+    worldSwitch.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        isDay = !isDay;
+
+        if (isDay) {
+            sky.className = 'sky-bg day';
+            worldSwitch.innerText = '☀️';
+            playCalmBell(261.63); // Низкий нежный тон для утра
+        } else {
+            sky.className = 'sky-bg night';
+            worldSwitch.innerText = '🌙';
+            playCalmBell(196.00); // Глубокий расслабляющий тон для ночи
+        }
+
+        // Плавный поворот самой кнопки
+        worldSwitch.style.transform = 'translateX(-50%) rotate(360deg)';
+        setTimeout(() => {
+            worldSwitch.style.transform = 'translateX(-50%) rotate(0deg)';
+        }, 500);
+
+        РефрешНеба();
+    });
+
+    // Стартовая инициализация
+    window.addEventListener('load', () => {
+        РефрешНеба();
+        updateGardenDisplay();
+    });
+</script>
+</body>
+</html>

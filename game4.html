@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Покорми Монстрика Фруктами! 🍉</title>
+    <style>
+        /* Настройки для отзывчивого тача на планшете */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #e8f5e9, #fff3e0);
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        /* Панель сытости */
+        .top-panel {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .counter {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 35px;
+            border-radius: 25px;
+            border: 4px solid #4caf50;
+            font-size: 28px;
+            color: #1b5e20;
+            box-shadow: 0 8px 15px rgba(76, 175, 80, 0.2);
+        }
+
+        /* Контейнер игрового поля */
+        .game-field {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Наш милый CSS Монстрик */
+        .monster {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 250px;
+            background-color: #ff4081;
+            border-radius: 50%;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15), inset -15px -15px 30px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            z-index: 2;
+        }
+
+        /* Глаза монстрика */
+        .eyes-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        .eye {
+            width: 50px;
+            height: 50px;
+            background-color: #fff;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .pupil {
+            width: 22px;
+            height: 22px;
+            background-color: #000;
+            border-radius: 50%;
+            position: absolute;
+            transition: transform 0.05s ease;
+        }
+
+        /* Большой рот */
+        .mouth {
+            width: 120px;
+            height: 65px;
+            background-color: #210411;
+            border-radius: 0 0 60px 60px;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.5);
+        }
+        .monster.chewing .mouth {
+            height: 15px;
+            border-radius: 50%;
+            transform: scaleX(0.7);
+        }
+
+        /* Общие стили для фруктов (крупные, под детский палец) */
+        .fruit {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            cursor: pointer;
+            z-index: 5;
+            filter: drop-shadow(0 10px 12px rgba(0,0,0,0.15));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 🍓 Клубничка */
+        .fruit-strawberry {
+            background-color: #ff1744;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+        }
+        /* Листик клубнички */
+        .fruit-strawberry::before {
+            content: "";
+            position: absolute;
+            top: -12px;
+            width: 30px;
+            height: 20px;
+            background-color: #4caf50;
+            border-radius: 50%;
+        }
+
+        /* 🍊 Апельсин */
+        .fruit-orange {
+            background-color: #ff9100;
+            border-radius: 50%;
+        }
+        /* Точка-пупок на апельсине */
+        .fruit-orange::before {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #e65100;
+            border-radius: 50%;
+        }
+
+        /* 🍏 Зелёное яблоко */
+        .fruit-apple {
+            background-color: #00e676;
+            border-radius: 50%;
+        }
+        /* Хвостик яблока */
+        .fruit-apple::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            width: 8px;
+            height: 18px;
+            background-color: #795548;
+            border-radius: 4px;
+            transform: rotate(15deg);
+        }
+
+        /* Стиль во время таскания пальцем */
+        .dragging {
+            z-index: 100;
+            transform: scale(1.25);
+            opacity: 0.95;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-field" id="gameField">
+    <!-- Счетчик вечного прогресса -->
+    <div class="top-panel">
+        <div class="counter" id="feed-display">🧁 СЫТОСТЬ: 0</div>
+    </div>
+
+    <!-- Наш интерактивный монстр по центру -->
+    <div class="monster" id="monster">
+        <div class="eyes-container">
+            <div class="eye"><div class="pupil" id="pupil-left"></div></div>
+            <div class="eye"><div class="pupil" id="pupil-right"></div></div>
+        </div>
+        <div class="mouth" id="mouth"></div>
+    </div>
+</div>
+<script>
+    const gameField = document.getElementById('gameField');
+    const monster = document.getElementById('monster');
+    const mouth = document.getElementById('mouth');
+    const feedDisplay = document.getElementById('feed-display');
+    const pupilLeft = document.getElementById('pupil-left');
+    const pupilRight = document.getElementById('pupil-right');
+
+    let feedCount = 0;
+    let db = null;
+    let activePointerId = null;
+    let dragElement = null;
+    let startX = 0;
+    let startY = 0;
+    let elemStartX = 0;
+    let elemStartY = 0;
+
+    const monsterColors = ['#ff4081', '#9c27b0', '#3f51b5', '#009688', '#4caf50', '#ff5722', '#00abcd', '#e91e63'];
+
+    // База данных для сохранения вечного прогресса сытости
+    const request = indexedDB.open("BabyFruitMonsterDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("progress", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadProgress();
+    };
+
+    function saveProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readwrite");
+        const store = tx.objectStore("progress");
+        store.put({ id: "satiety", val: feedCount });
+    }
+
+    function loadProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readonly");
+        const store = tx.objectStore("progress");
+        const getReq = store.get("satiety");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                feedCount = getReq.result.val;
+                feedDisplay.innerText = `🧁 СЫТОСТЬ: ${feedCount}`;
+            }
+        };
+    }
+
+    // Сочный хрустяще-чавкающий звук из Web Audio API
+    let audioCtx = null;
+    function playChompSound() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        for (let i = 0; i < 3; i++) {
+            const timeOffset = i * 0.08;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = i % 2 === 0 ? 'triangle' : 'square';
+            osc.frequency.setValueAtTime(190 - (i * 30), audioCtx.currentTime + timeOffset);
+            osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + timeOffset + 0.06);
+            
+            gain.gain.setValueAtTime(0.85, audioCtx.currentTime + timeOffset);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + timeOffset + 0.06);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start(audioCtx.currentTime + timeOffset);
+            osc.stop(audioCtx.currentTime + timeOffset + 0.06);
+        }
+    }
+
+    // Функция генерации фруктов в случайных местах экрана
+    function spawnFruits() {
+        // Удаляем старые фрукты, если они остались
+        const oldFruits = document.querySelectorAll('.fruit');
+        oldFruits.forEach(f => f.remove());
+
+        const fruitTypes = ['strawberry', 'orange', 'apple'];
+        const monsterRect = monster.getBoundingClientRect();
+        
+        // Спавним 4 случайных фрукта по всей карте
+        for (let i = 0; i < 4; i++) {
+            const fruit = document.createElement('div');
+            const type = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
+            
+            fruit.classList.add('fruit', `fruit-${type}`);
+            fruit.dataset.type = type;
+            
+            // Вычисляем случайные координаты так, чтобы фрукт не заспавнился прямо на монстре
+            let posX, posY;
+            let isOnMonster = true;
+            const fruitSize = 110;
+
+            while (isOnMonster) {
+                posX = Math.random() * (window.innerWidth - fruitSize);
+                posY = Math.random() * (window.innerHeight - fruitSize - 40) + 20;
+
+                // Проверяем пересечение с зоной монстра (с запасом в 30px)
+                if (
+                    posX + fruitSize < monsterRect.left - 30 ||
+                    posX > monsterRect.right + 30 ||
+                    posY + fruitSize < monsterRect.top - 30 ||
+                    posY > monsterRect.bottom + 30
+                ) {
+                    isOnMonster = false; // Нашли свободное место!
+                }
+            }
+
+            fruit.style.left = `${posX}px`;
+            fruit.style.top = `${posY}px`;
+
+            // Подключаем тач-события
+            fruit.addEventListener('pointerdown', onPointerDown);
+            gameField.appendChild(fruit);
+        }
+    }
+
+    // Обработка начала перетаскивания пальцем
+    function onPointerDown(e) {
+        if (dragElement) return; 
+        e.preventDefault();
+        
+        dragElement = e.currentTarget;
+        activePointerId = e.pointerId;
+        dragElement.setPointerCapture(e.pointerId);
+        dragElement.classList.add('dragging');
+        
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        elemStartX = parseInt(dragElement.style.left) || 0;
+        elemStartY = parseInt(dragElement.style.top) || 0;
+        
+        dragElement.addEventListener('pointermove', onPointerMove);
+        dragElement.addEventListener('pointerup', onPointerUp);
+        dragElement.addEventListener('pointercancel', onPointerUp);
+    }
+
+    // Движение пальца по экрану
+    function onPointerMove(e) {
+        if (!dragElement || e.pointerId !== activePointerId) return;
+        e.preventDefault();
+        
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        const newLeft = elemStartX + dx;
+        const newTop = elemStartY + dy;
+        
+        dragElement.style.left = `${newLeft}px`;
+        dragElement.style.top = `${newTop}px`;
+        
+        // Зрачки монстра следят за фруктом
+        lookAt(e.clientX, e.clientY);
+    }
+
+    // Отпускание пальца
+    function onPointerUp(e) {
+        if (!dragElement || e.pointerId !== activePointerId) return;
+        e.preventDefault();
+        
+        dragElement.releasePointerCapture(e.pointerId);
+        dragElement.classList.remove('dragging');
+        
+        const fruitRect = dragElement.getBoundingClientRect();
+        const monsterRect = monster.getBoundingClientRect();
+        
+        const fx = fruitRect.left + fruitRect.width / 2;
+        const fy = fruitRect.top + fruitRect.height / 2;
+        const mx = monsterRect.left + monsterRect.width / 2;
+        const my = monsterRect.top + monsterRect.height / 2;
+        
+        const distance = Math.hypot(fx - mx, fy - my);
+        
+        if (distance < 120) { // Фрукт дотащили до рта!
+            eatFruit();
+            dragElement.remove();
+            
+            // Если все фрукты на карте съедены, спавним новую партию
+            if (document.querySelectorAll('.fruit').length === 0) {
+                setTimeout(spawnFruits, 600);
+            }
+        } else {
+            // Если малыш отпустил фрукт мимо — он плавно улетает на свою точку спавна
+            dragElement.style.transition = 'all 0.3s ease-out';
+            dragElement.style.left = `${elemStartX}px`;
+            dragElement.style.top = `${elemStartY}px`;
+            const tempElem = dragElement;
+            setTimeout(() => { if(tempElem) tempElem.style.transition = ''; }, 300);
+        }
+        
+        resetEyes();
+        
+        dragElement.removeEventListener('pointermove', onPointerMove);
+        dragElement.removeEventListener('pointerup', onPointerUp);
+        dragElement.removeEventListener('pointercancel', onPointerUp);
+        
+        dragElement = null;
+        activePointerId = null;
+    }
+
+    // Логика жевания и изменения счета
+    function eatFruit() {
+        playChompSound();
+        
+        monster.classList.add('chewing');
+        monster.style.transform = 'translate(-50%, -50%) scale(1.15)';
+        
+        const randomColor = monsterColors[Math.floor(Math.random() * monsterColors.length)];
+        
+        feedCount++;
+        feedDisplay.innerText = `🧁 СЫТОСТЬ: ${feedCount}`;
+        saveProgress();
+
+        setTimeout(() => {
+            monster.classList.remove('chewing');
+            monster.style.transform = 'translate(-50%, -50%) scale(1)';
+            monster.style.backgroundColor = randomColor;
+        }, 400);
+    }
+
+    // Движение зрачков
+    function lookAt(targetX, targetY) {
+        [pupilLeft, pupilRight].forEach(pupil => {
+            const eyeRect = pupil.parentElement.getBoundingClientRect();
+            const eyeCenterX = eyeRect.left + eyeRect.width / 2;
+            const eyeCenterY = eyeRect.top + eyeRect.height / 2;
+            
+            const angle = Math.atan2(targetY - eyeCenterY, targetX - eyeCenterX);
+            const dist = 9; 
+            const px = Math.cos(angle) * dist;
+            const py = Math.sin(angle) * dist;
+            
+            pupil.style.transform = `translate(${px}px, ${py}px)`;
+        });
+    }
+
+    function resetEyes() {
+        pupilLeft.style.transform = 'translate(0, 0)';
+        pupilRight.style.transform = 'translate(0, 0)';
+    }
+
+    // Запускаем спавн фруктов после полной прорисовки интерфейса
+    window.addEventListener('load', () => {
+        setTimeout(spawnFruits, 100);
+    });
+</script>
+</body>
+</html>

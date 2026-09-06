@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Весёлые Прятки! 🎉</title>
+    <style>
+        /* Полный сброс для планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #ffe0b2, #e0f2f1);
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        /* Панель прогресса */
+        .top-panel {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .counter {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 40px;
+            border-radius: 25px;
+            border: 4px solid #ff9800;
+            font-size: 30px;
+            color: #e65100;
+            box-shadow: 0 10px 20px rgba(230, 81, 0, 0.15);
+            text-shadow: 1px 1px 0px #fff;
+        }
+
+        /* Сетка с домиками/норками */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            width: 100%;
+            height: 100%;
+            padding: 100px 40px 40px 40px;
+            gap: 40px;
+        }
+
+        /* Место пряток (контейнер норки) */
+        .hole-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden; /* Чтобы колобок прятался внизу */
+            height: 100%;
+            border-bottom: 8px solid rgba(0,0,0,0.1);
+        }
+
+        /* Сама норка (визуальный полукруг на заднем плане) */
+        .hole-bg {
+            position: absolute;
+            bottom: 0;
+            width: 180px;
+            height: 90px;
+            background-color: #4e342e;
+            border-radius: 90px 90px 0 0;
+            box-shadow: inset 0 10px 15px rgba(0,0,0,0.6);
+            z-index: 1;
+        }
+
+        /* Весёлый прыгающий персонаж (на чистом CSS) */
+        .character {
+            position: absolute;
+            bottom: -150px; /* Изначально спрятан */
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background-color: #ffeb3b;
+            box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2), 0 10px 15px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 65px; /* Для смайлика-рожицы внутри */
+            transition: bottom 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Пружинистый вылет */
+        }
+
+        /* Состояние когда персонаж выпрыгнул */
+        .character.active {
+            bottom: 30px;
+        }
+
+        /* Анимация пойманного персонажа (крутится и исчезает) */
+        .character.caught {
+            animation: catchMe 0.3s ease-out forwards;
+        }
+        @keyframes catchMe {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1.6) rotate(360deg); opacity: 0; }
+        }
+
+        /* Всплывающий праздничный текст УРА! */
+        .win-text {
+            position: absolute;
+            font-size: 70px;
+            font-weight: bold;
+            color: #4caf50;
+            text-shadow: 4px 4px 0px #fff, -4px -4px 0px #fff, 4px -4px 0px #fff, -4px 4px 0px #fff;
+            pointer-events: none;
+            z-index: 5;
+            animation: shoutOut 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.5) forwards;
+        }
+        @keyframes shoutOut {
+            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+            30% { transform: scale(1.3) rotate(10deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 0; translateY(-50px); }
+        }
+
+        /* Праздничные частицы салюта */
+        .star-particle {
+            position: absolute;
+            font-size: 30px;
+            pointer-events: none;
+            z-index: 6;
+            animation: starExplode 0.5s ease-out forwards;
+        }
+        @keyframes starExplode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Панель постоянного рекорда -->
+<div class="top-panel">
+    <div class="counter" id="score-display">🎉 ПОЙМАНО: 0</div>
+</div>
+
+<!-- Игровое поле: 4 норки по углам экрана планшета -->
+<div class="grid-container">
+    <div class="hole-wrapper" id="wrapper-0">
+        <div class="hole-bg"></div>
+        <div class="character" id="char-0">😀</div>
+    </div>
+    <div class="hole-wrapper" id="wrapper-1">
+        <div class="hole-bg"></div>
+        <div class="character" id="char-1">😜</div>
+    </div>
+    <div class="hole-wrapper" id="wrapper-2">
+        <div class="hole-bg"></div>
+        <div class="character" id="char-2">😎</div>
+    </div>
+    <div class="hole-wrapper" id="wrapper-3">
+        <div class="hole-bg"></div>
+        <div class="character" id="char-3">🤖</div>
+    </div>
+</div>
+<script>
+    const scoreDisplay = document.getElementById('score-display');
+    const characters = [
+        document.getElementById('char-0'),
+        document.getElementById('char-1'),
+        document.getElementById('char-2'),
+        document.getElementById('char-3')
+    ];
+
+    // Разные смешные рожицы, которые будут меняться
+    const emojis = ['😀', '😜', '😎', '🤖', '🦁', '🐸', '🐱', '🦊', '🐻', '🐼', '🦄', '🐷'];
+    // Яркие цвета для фона персонажа
+    const bgColors = ['#ffeb3b', '#ff4081', '#00e676', '#00abcd', '#ff9100', '#b388ff'];
+
+    let caughtCount = 0;
+    let db = null;
+    let currentActiveIndex = null;
+    let hideTimeoutId = null;
+    let spawnTimeoutId = null;
+
+    // Инициализация базы данных IndexedDB для вечного сохранения рекорда
+    const request = indexedDB.open("BabyHideSeekDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("progress", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadProgress();
+    };
+
+    function saveProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readwrite");
+        const store = tx.objectStore("progress");
+        store.put({ id: "caught", val: caughtCount });
+    }
+
+    function loadProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readonly");
+        const store = tx.objectStore("progress");
+        const getReq = store.get("caught");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                caughtCount = getReq.result.val;
+                scoreDisplay.innerText = `🎉 ПОЙМАНО: ${caughtCount}`;
+            }
+        };
+    }
+
+    // Встроенный синтезатор звуков
+    let audioCtx = null;
+    function playSound(type) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        if (type === 'jump') {
+            // Смешной свистящий звук прыжка вверх "Уииип!"
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.25);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } else if (type === 'catch') {
+            // Мощный, сочный аркадный победный дзинь
+            const osc2 = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc2.type = 'triangle';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08); // Переход в мажорный аккорд
+            osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.8, audioCtx.currentTime); // Громко
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            osc.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc2.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+            osc2.stop(audioCtx.currentTime + 0.4);
+        }
+    }
+
+    // Функция, выбирающая случайную норку и выталкивающая персонажа
+    function spawnCharacter() {
+        // Убираем активного, если он был
+        resetRound();
+
+        // Выбираем новую случайную норку из 4 доступных
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        const char = characters[randomIndex];
+        currentActiveIndex = randomIndex;
+
+        // Меняем внешний вид: случайный эмодзи и сочный цвет фона
+        char.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+        char.style.backgroundColor = bgColors[Math.floor(Math.random() * bgColors.length)];
+
+        // Показываем персонажа и играем звук прыжка
+        char.classList.add('active');
+        playSound('jump');
+
+        // Колобок ждёт на планшете примерно 1.8 секунды, чтобы 3-летний ребёнок комфортно успевал нажать
+        hideTimeoutId = setTimeout(() => {
+            char.classList.remove('active');
+            // Через небольшую паузу запускаем новую прятку
+            spawnTimeoutId = setTimeout(spawnCharacter, Math.random() * 800 + 600);
+        }, 1800);
+    }
+
+    // Обработка тапа по персонажу
+    characters.forEach((char, index) => {
+        char.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            
+            // Защита, чтобы нельзя было кликнуть по спрятанному персонажу
+            if (!char.classList.contains('active') || char.classList.contains('caught')) return;
+
+            clearTimeout(hideTimeoutId);
+            char.classList.remove('active');
+            char.classList.add('caught');
+
+            playSound('catch');
+            
+            // Вычисляем координаты для спецэффектов
+            const rect = char.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+
+            createWinEffects(cx, cy);
+
+            // Начисляем очко
+            caughtCount++;
+            scoreDisplay.innerText = `🎉 ПОЙМАНО: ${caughtCount}`;
+            saveProgress();
+
+            // Ждём окончания анимации поимки и запускаем следующий раунд
+            setTimeout(() => {
+                resetRound();
+                spawnTimeoutId = setTimeout(spawnCharacter, 800);
+            }, 300);
+        });
+    });
+
+    function resetRound() {
+        characters.forEach(char => {
+            char.classList.remove('active', 'caught');
+        });
+        currentActiveIndex = null;
+    }
+
+    // Создание текста УРА! и салюта из звёздочек прямо в месте тапа
+    function createWinEffects(x, y) {
+        // 1. Надпись УРА!
+        const winText = document.createElement('div');
+        winText.classList.add('win-text');
+        const words = ['УРА!', 'ЕЙ!', 'ОПА!', 'ВАУ!', 'КЛАСС!'];
+        winText.innerText = words[Math.floor(Math.random() * words.length)];
+        winText.style.left = `${x - 70}px`;
+        winText.style.top = `${y - 50}px`;
+        document.body.appendChild(winText);
+        winText.addEventListener('animationend', () => winText.remove());
+
+        // 2. Салют из 12 звёздочек
+        const starSymbols = ['✨', '⭐', '🌟'];
+        for (let i = 0; i < 12; i++) {
+            const star = document.createElement('div');
+            star.classList.add('star-particle');
+            star.innerText = starSymbols[Math.floor(Math.random() * starSymbols.length)];
+            star.style.left = `${x - 15}px`;
+            star.style.top = `${y - 15}px`;
+
+            // Углы и дальность разлёта звёзд вокруг норки
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 160 + 60;
+            star.style.setProperty('--dx', `${Math.cos(angle) * distance}px`);
+            star.style.setProperty('--dy', `${Math.sin(angle) * distance}px`);
+
+            document.body.appendChild(star);
+            star.addEventListener('animationend', () => star.remove());
+        }
+    }
+
+    // Запуск игры с небольшой задержкой после открытия вкладки
+    window.addEventListener('load', () => {
+        spawnTimeoutId = setTimeout(spawnCharacter, 1000);
+    });
+</script>
+</body>
+</html>

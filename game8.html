@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Волшебные Пары ✨</title>
+    <style>
+        /* Сброс для больших экранов планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: linear-gradient(135deg, #fce4ec, #e8eaf6); /* Очень нежные пастельные тона */
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        /* Панель вечного прогресса памяти */
+        .top-panel {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .counter {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 8px 30px;
+            border-radius: 25px;
+            border: 3px solid #b39ddb;
+            font-size: 26px;
+            color: #4a148c;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+        }
+
+        /* Сетка для 20 карточек (5 колонок на 4 ряда — идеально под планшет) */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            width: 100%;
+            height: 100%;
+            padding: 80px 25px 25px 25px; /* Отступ сверху для панели счета */
+            gap: 15px;
+            z-index: 2;
+            position: relative;
+        }
+
+        /* Контейнер карточки (создает 3D пространство для переворота) */
+        .card {
+            perspective: 1000px;
+            cursor: pointer;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Внутренний блок, который физически крутится */
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+            transform-style: preserve-3d;
+        }
+
+        /* Состояние перевернутой карточки */
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        /* Стороны карточки (Рубашка и Лицо) */
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 12px rgba(0,0,0,0.06), inset 0 -5px 10px rgba(0,0,0,0.05);
+        }
+
+        /* Рубашка плиточки (мягкий уютный узор) */
+        .card-front {
+            background: linear-gradient(135deg, #ffe082, #ffd54f);
+            border: 4px solid #fff;
+            /* Нежная текстура кружочков */
+            background-image: radial-gradient(rgba(255,255,255,0.4) 20%, transparent 20%);
+            background-size: 20px 20px;
+        }
+
+        /* Лицо плиточки с картинкой-эмодзи */
+        .card-back {
+            background-color: #fff;
+            border: 4px solid #b39ddb;
+            transform: rotateY(180deg);
+            font-size: 55px; /* Крупные, понятные ребенку значки */
+        }
+
+        /* Анимация совпавшей пары (мягкое покачивание/увеличение) */
+        .card.matched .card-back {
+            animation: matchSuccess 0.4s ease-out forwards;
+            border-color: #81c784;
+            background-color: #e8f5e9;
+        }
+        @keyframes matchSuccess {
+            0% { transform: rotateY(180deg) scale(1); }
+            50% { transform: rotateY(180deg) scale(1.08); }
+            100% { transform: rotateY(180deg) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Панель постоянного прогресса -->
+<div class="top-panel">
+    <div class="counter" id="score-display">🧠 УМНИК: 0</div>
+</div>
+
+<!-- Игровая сетка для 20 карточек -->
+<div class="game-grid" id="grid"></div>
+<script>
+    const gridContainer = document.getElementById('grid');
+    const scoreDisplay = document.getElementById('score-display');
+
+    // 10 пар добрых детских картинок (всего 20 штук на поле)
+    const poolEmojis = ['🐼', '🦁', '🐰', '🐸', '🐱', '🍓', '🍎', '🍌', '🍉', '🚗'];
+    let cardsData = [];
+    
+    let firstCard = null;
+    let secondCard = null;
+    let lockBoard = false;
+    let scoreCount = 0;
+    let db = null;
+
+    // Инициализация базы данных для вечного сохранения прогресса
+    const request = indexedDB.open("BabyMemoryDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("progress", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadProgress();
+    };
+
+    function saveProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readwrite");
+        const store = tx.objectStore("progress");
+        store.put({ id: "brainScore", val: scoreCount });
+    }
+
+    function loadProgress() {
+        if (!db) return;
+        const tx = db.transaction("progress", "readonly");
+        const store = tx.objectStore("progress");
+        const getReq = store.get("brainScore");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                scoreCount = getReq.result.val;
+                scoreDisplay.innerText = `🧠 УМНИК: ${scoreCount}`;
+            }
+        };
+    }
+
+    // WEB AUDIO API: Мягкие звуки колокольчиков и нежный бесконечный фон
+    let audioCtx = null;
+    let isMusicPlaying = false;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startBackgroundLullaby(); // Автоматически запускаем тихую музыку
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Мягкий звук колокольчика для переворота и совпадения плиток
+    function playSoftTone(freq, duration = 0.5, volume = 0.15) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine'; // Чистая мягкая синусоида без резкости
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // Бесконечная, очень тихая фоновая мелодия (Колыбельная шкатулка)
+    function startBackgroundLullaby() {
+        if (isMusicPlaying) return;
+        isMusicPlaying = true;
+
+        // Спокойные, расслабляющие ноты колыбельной
+        const melody = [261.63, 329.63, 392.00, 440.00, 392.00, 329.63, 293.66, 329.63];
+        let noteIndex = 0;
+
+        function playNextBackgroundNote() {
+            if (!audioCtx) return;
+            
+            // Играем ноту экстремально тихо (volume = 0.025), чтобы она просто мягко баюкала на фоне
+            playSoftTone(melody[noteIndex], 1.4, 0.025);
+            
+            noteIndex = (noteIndex + 1) % melody.length;
+            // Каждая нотка играет медленно и спокойно раз в 1.5 секунды
+            setTimeout(playNextBackgroundNote, 1500);
+        }
+
+        playNextBackgroundNote();
+    }
+
+    // Создание и случайное перемешивание 20 карточек
+    function setupGame() {
+        gridContainer.innerHTML = '';
+        // Дублируем 10 эмодзи, чтобы получилось 20 штук (10 пар)
+        const combined = [...poolEmojis, ...poolEmojis];
+        
+        // Перемешивание карточек
+        for (let i = combined.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [combined[i], combined[j]] = [combined[j], combined[i]];
+        }
+
+        cardsData = combined;
+
+        // Отрисовка плиточек на экране
+        cardsData.forEach((emoji, index) => {
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.emoji = emoji;
+            card.dataset.index = index;
+
+            card.innerHTML = `
+                <div class="card-inner">
+                    <div class="card-front"></div>
+                    <div class="card-back">${emoji}</div>
+                </div>
+            `;
+
+            card.addEventListener('pointerdown', flipCard);
+            gridContainer.appendChild(card);
+        });
+    }
+
+    // Клик или тап пальцем по карточке
+    function flipCard(e) {
+        e.preventDefault();
+        initAudio(); // Активируем аудиоконтекст и музыку при первом же касании экрана ребенка
+
+        if (lockBoard) return;
+        const clickedCard = e.currentTarget;
+
+        // Защита: нельзя нажать на уже открытую или совпавшую карточку
+        if (clickedCard === firstCard || clickedCard.classList.contains('flipped') || clickedCard.classList.contains('matched')) return;
+
+        clickedCard.classList.add('flipped');
+        playSoftTone(329.63, 0.4, 0.1); // Приятный тихий звук переворота
+
+        if (!firstCard) {
+            firstCard = clickedCard;
+            return;
+        }
+
+        secondCard = clickedCard;
+        checkForMatch();
+    }
+
+    // Проверка совпадения пары
+    function checkForMatch() {
+        let isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+
+        if (isMatch) {
+            disableCards();
+        } else {
+            unflipCards();
+        }
+    }
+
+    // Если картинки совпали
+    function disableCards() {
+        lockBoard = true;
+        
+        setTimeout(() => {
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
+            
+            // Гармоничный, нежный победный перелив колокольчиков
+            playSoftTone(523.25, 0.8, 0.12);
+            setTimeout(() => playSoftTone(659.25, 0.6, 0.12), 100);
+
+            scoreCount++;
+            scoreDisplay.innerText = `🧠 УМНИК: ${scoreCount}`;
+            saveProgress();
+
+            resetSelected();
+
+            // Если все 20 карточек успешно открыты
+            const allMatched = document.querySelectorAll('.card.matched').length;
+            if (allMatched === 20) {
+                // Плавно перезапускаем поле через 2.5 секунды отдыха, чтобы ребенок порадовался результату
+                setTimeout(() => {
+                    playSoftTone(392.00, 1.5, 0.15); // Приятный финальный аккорд
+                    setupGame();
+                }, 2500);
+            }
+        }, 300);
+    }
+
+    // Если картинки не совпали — мягко закрываем их обратно
+    function unflipCards() {
+        lockBoard = true;
+
+        setTimeout(() => {
+            firstCard.classList.remove('flipped');
+            secondCard.classList.remove('flipped');
+            
+            playSoftTone(220.00, 0.3, 0.06); // Низкий, спокойный тон закрытия плитки
+
+            resetSelected();
+        }, 1200); // Даем ребенку 1.2 секунды спокойно запомнить картинку
+    }
+
+    function resetSelected() {
+        [firstCard, secondCard] = [null, null];
+        lockBoard = false;
+    }
+
+    // Запуск игры
+    setupGame();
+</script>
+</body>
+</html>

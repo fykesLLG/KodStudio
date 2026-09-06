@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Малыш-Рисовалка Мультитач 🎨</title>
+    <style>
+        /* Полный сброс для планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f7f9fc; /* Приятный мягкий светлый фон */
+            font-family: 'Arial Black', system-ui, sans-serif;
+        }
+
+        /* Наш холст для рисования */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+        }
+
+        /* Боковая панель с гигантскими кнопками цветов */
+        .color-palette {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        /* Стили огромных кнопок для детских пальцев */
+        .color-btn {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            border: 5px solid #fff;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15), inset 0 -6px 10px rgba(0,0,0,0.15);
+            cursor: pointer;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .color-btn:active, .color-btn.active {
+            transform: scale(1.15);
+            box-shadow: 0 0 15px rgba(0,0,0,0.25), inset 0 -6px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Кнопка РАДУГА */
+        .btn-rainbow {
+            background: linear-gradient(45deg, #ff1744, #ffea00, #00e676, #00b0ff, #651fff);
+        }
+
+        /* Большая кнопка удаления рисунка OK в противоположном углу */
+        .clear-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #4caf50, #2e7d32); /* Спокойный зеленый */
+            border: 5px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(46, 125, 50, 0.3), inset 0 -6px 10px rgba(0,0,0,0.2);
+            transition: transform 0.05s ease;
+            text-shadow: 1px 2px 2px rgba(0,0,0,0.2);
+        }
+        .clear-btn:active {
+            transform: scale(0.9);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Холст альбома -->
+<canvas id="paintCanvas"></canvas>
+
+<!-- Крупная боковая палитра -->
+<div class="color-palette">
+    <div class="color-btn active" id="btn-red" style="background-color: #ff1744;" data-color="#ff1744" data-note="261.63"></div>
+    <div class="color-btn" id="btn-blue" style="background-color: #2979ff;" data-color="#2979ff" data-note="293.66"></div>
+    <div class="color-btn" id="btn-green" style="background-color: #00e676;" data-color="#00e676" data-note="329.63"></div>
+    <div class="color-btn" id="btn-yellow" style="background-color: #ffea00;" data-color="#ffea00" data-note="392.00"></div>
+    <div class="color-btn btn-rainbow" id="btn-rainbow" data-color="rainbow" data-note="440.00"></div>
+</div>
+
+<!-- Большая детская кнопка стирания OK -->
+<div class="clear-btn" id="clearBtn">OK</div>
+<script>
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const clearBtn = document.getElementById('clearBtn');
+    const colorButtons = document.querySelectorAll('.color-btn');
+
+    // Объект для хранения координат каждого пальца отдельно
+    const activePointers = {};
+    
+    let currentColor = '#ff1744'; // Стартовый цвет
+    let isRainbow = false;
+    let hue = 0; // Для радуги
+
+    // Настраиваем холст под экран планшета
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        ctx.fillStyle = '#f7f9fc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Общие настройки линий кисти
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 24; // Жирная кисть под детский пальчик
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // WEB AUDIO API: Мягкие звуки колокольчиков и нежный бесконечный фон
+    let audioCtx = null;
+    let isMusicPlaying = false;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startBackgroundMusic();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playSoftTone(freq, duration = 0.5, volume = 0.12) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sine'; // Чистая мягкая волна колыбельной
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // Спокойная тихая фоновая музыка (Шкатулка колыбельной)
+    function startBackgroundMusic() {
+        if (isMusicPlaying) return;
+        isMusicPlaying = true;
+
+        const melody = [329.63, 349.23, 392.00, 440.00, 392.00, 349.23, 329.63, 293.66];
+        let noteIndex = 0;
+
+        function playNextNote() {
+            if (!audioCtx) return;
+            playSoftTone(melody[noteIndex], 1.5, 0.02); // Экстремально тихо
+            noteIndex = (noteIndex + 1) % melody.length;
+            setTimeout(playNextNote, 1600); // Медленный ритмичный темп
+        }
+
+        playNextNote();
+    }
+
+    // Логика МУЛЬТИТАЧ рисования пальцами на планшете
+    canvas.addEventListener('pointerdown', (e) => {
+        initAudio(); // Включаем звук/музыку при первом тапе
+        
+        // Запоминаем точку старта КОНКРЕТНОГО пальца по его pointerId
+        activePointers[e.pointerId] = {
+            lastX: e.clientX,
+            lastY: e.clientY
+        };
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+        // Проверяем, двигается ли именно тот палец, который мы запомнили
+        if (!activePointers[e.pointerId]) return;
+        e.preventDefault();
+
+        const pointer = activePointers[e.pointerId];
+
+        ctx.beginPath();
+        // Ведем линию от старой точки этого пальца к новой точке этого же пальца
+        ctx.moveTo(pointer.lastX, pointer.lastY);
+        ctx.lineTo(e.clientX, e.clientY);
+
+        // Настройка цвета линии прямо в момент движения
+        if (isRainbow) {
+            hue = (hue + 1) % 360; // Плавная радуга
+            ctx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+        } else {
+            ctx.strokeStyle = currentColor;
+        }
+
+        ctx.stroke();
+
+        // Обновляем последние координаты текущего пальца
+        pointer.lastX = e.clientX;
+        pointer.lastY = e.clientY;
+    });
+
+    // Когда палец отпустили или он ушел с экрана
+    function stopPointer(e) {
+        if (activePointers[e.pointerId]) {
+            delete activePointers[e.pointerId]; // Полностью удаляем этот палец из списка активных
+        }
+    }
+
+    canvas.addEventListener('pointerup', stopPointer);
+    canvas.addEventListener('pointerleave', stopPointer);
+    canvas.addEventListener('pointercancel', stopPointer);
+
+    // Выбор цвета большими круглыми кнопками по бокам
+    colorButtons.forEach(btn => {
+        btn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            initAudio();
+
+            // Подсвечиваем только выбранную кнопку
+            colorButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const selected = btn.dataset.color;
+            const note = parseFloat(btn.dataset.note);
+
+            // Мягкая нота колокольчика при переключении цвета
+            playSoftTone(note, 0.6, 0.15);
+
+            if (selected === 'rainbow') {
+                isRainbow = true;
+            } else {
+                isRainbow = false;
+                currentColor = selected;
+            }
+        });
+    });
+
+    // Очистка экрана кнопкой OK
+    clearBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        initAudio();
+        
+        // Красивый нежный перелив колокольчиков вверх при стирании
+        playSoftTone(392.00, 0.4, 0.15);
+        setTimeout(() => playSoftTone(523.25, 0.6, 0.15), 100);
+
+        // Стираем весь рисунок, заливая холст мягким светлым фоном
+        ctx.fillStyle = '#f7f9fc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мой Профиль 👑</title>
+    <style>
+        /* Полный сброс для планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #e0f2f1, #fff8e1);
+            font-family: system-ui, -apple-system, sans-serif;
+            color: #37474f;
+        }
+
+        .panel-container {
+            width: 92%;
+            max-width: 580px;
+            background-color: #ffffff;
+            border-radius: 35px;
+            border: 6px solid #4db6ac;
+            padding: 25px;
+            margin: 20px auto;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .main-title {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 26px;
+            color: #004d40;
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            font-size: 15px;
+            color: #555;
+            font-weight: bold;
+            margin: 12px 0 6px 0;
+            text-align: left;
+            display: block;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 18px;
+            border: 3px solid #b2dfdb;
+            background-color: #fafafa;
+            font-family: inherit;
+            text-align: center;
+            outline: none;
+        }
+
+        .avatar-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .avatar-item {
+            font-size: 40px;
+            background-color: #f5f5f5;
+            border: 4px solid transparent;
+            border-radius: 50%;
+            aspect-ratio: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        .avatar-item.selected {
+            background-color: #e0f2f1;
+            border-color: #4db6ac;
+            transform: scale(1.1);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 22px;
+            font-family: 'Arial Black', sans-serif;
+            color: #fff;
+            background: linear-gradient(135deg, #009688, #00796b);
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0, 150, 136, 0.2), inset 0 -4px 0 rgba(0,0,0,0.15);
+            margin-top: 15px;
+        }
+
+        /* Экран созданного профиля */
+        .profile-avatar { font-size: 90px; margin-bottom: 5px; }
+        .profile-name { font-family: 'Arial Black', sans-serif; font-size: 28px; color: #004d40; margin-bottom: 25px; }
+
+        .section-subtitle {
+            font-family: 'Arial Black', sans-serif;
+            font-size: 18px;
+            color: #00796b;
+            text-align: left;
+            margin: 20px 0 10px 0;
+            border-bottom: 2px dashed #b2dfdb;
+            padding-bottom: 5px;
+        }
+
+        /* Красивые строки вывода точного времени */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fafafa;
+            padding: 12px 20px;
+            border-radius: 15px;
+            margin-bottom: 8px;
+            font-size: 16px;
+            border: 1px solid #e0e0e0;
+        }
+        .stat-lbl { font-weight: bold; color: #555; display: flex; align-items: center; gap: 8px; }
+        .stat-val { font-family: 'Arial Black', sans-serif; color: #e65100; font-size: 17px; }
+
+        .game-list-box { width: 100%; }
+    </style>
+</head>
+<body>
+
+<!-- 1. ЭКРАН РЕГИСТРАЦИИ (Без всяких паролей) -->
+<div class="panel-container" id="screen-register" style="display: none;">
+    <div class="main-title">КТО ТЫ, МАЛЫШ? 🦁</div>
+    
+    <span class="input-label">Выбери картинку:</span>
+    <div class="avatar-selector" id="avatarGrid">
+        <div class="avatar-item selected">🦁</div>
+        <div class="avatar-item">🦊</div>
+        <div class="avatar-item">🐱</div>
+        <div class="avatar-item">🐼</div>
+        <div class="avatar-item">🐻</div>
+        <div class="avatar-item">🦖</div>
+        <div class="avatar-item">🦄</div>
+        <div class="avatar-item">🐸</div>
+    </div>
+
+    <span class="input-label">Твоё Имя:</span>
+    <input type="text" id="reg-name" placeholder="Как тебя зовут?" maxlength="12">
+
+    <button class="action-btn" id="btn-save-profile">ГОТОВО! 🚀</button>
+</div>
+
+<!-- 2. ЭКРАН ЖИВОГО ПРОФИЛЯ С ТОЧНЫМ СЧЕТЧИКОМ (МИНУТЫ И СЕКУНДЫ) -->
+<div class="panel-container" id="screen-profile" style="display: none;">
+    <div class="profile-avatar" id="view-avatar">🦁</div>
+    <div class="profile-name" id="view-name">МАЛЫШ</div>
+
+    <div class="section-subtitle">⏱️ ВРЕМЯ НА САЙТЕ</div>
+    <div class="stat-row">
+        <div class="stat-lbl">Текущий час:</div>
+        <div class="stat-val" id="time-hour">00м 00с</div>
+    </div>
+    <div class="stat-row" style="background: #e8f5e9; border-color: #c8e6c9;">
+        <div class="stat-lbl" style="color: #2e7d32;">Сегодня:</div>
+        <div class="stat-val" id="time-today" style="color: #2e7d32;">00м 00с</div>
+    </div>
+    <div class="stat-row">
+        <div class="stat-lbl">Вчера:</div>
+        <div class="stat-val" id="time-yesterday">00м 00с</div>
+    </div>
+
+    <div class="section-subtitle">🎮 ВРЕМЯ ПО ИГРАМ</div>
+    <div class="game-list-box" id="game-stats-container">
+        <!-- Сюда JS выведет точное время по каждой игре -->
+    </div>
+</div>
+<script>
+    const screenRegister = document.getElementById('screen-register');
+    const screenProfile = document.getElementById('screen-profile');
+    const avatarGrid = document.getElementById('avatarGrid');
+    const btnSaveProfile = document.getElementById('btn-save-profile');
+    const gameStatsContainer = document.getElementById('game-stats-container');
+
+    // Словарь красивых имён и иконок для отображения игр
+    const gameNames = {
+        'game1.html': { name: 'Лопни шарик', icon: '🎈' },
+        'game2.html': { name: 'Пианино', icon: '🎹' },
+        'game3.html': { name: 'Радужная кисть', icon: '🎨' },
+        'game4.html': { name: 'Покорми монстра', icon: '👾' },
+        'game5.html': { name: 'Весёлые прятки', icon: '🐸' },
+        'game6.html': { name: 'Крушитель башни', icon: '🧱' },
+        'game7.html': { name: 'День и Ночь', icon: '☀️' },
+        'game8.html': { name: 'Волшебные пары', icon: '🧠' },
+        'game9.html': { name: 'Малыш альбом', icon: '✏️' },
+        'game10.html': { name: 'Кто что ест?', icon: '🐰' }
+    };
+
+    let selectedAvatar = '🦁';
+    let db = null;
+    let userProfile = null;
+    let timeStats = null;
+
+    // Выбор картинки-эмодзи при регистрации
+    avatarGrid.addEventListener('pointerdown', (e) => {
+        const item = e.target.closest('.avatar-item');
+        if (!item) return;
+        e.preventDefault();
+        avatarGrid.querySelectorAll('.avatar-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedAvatar = item.innerText;
+    });
+
+    // Инициализация IndexedDB профиля
+    const request = indexedDB.open("BabyProfileDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        if (!db.objectStoreNames.contains("profile")) db.createObjectStore("profile", { keyPath: "id" });
+        if (!db.objectStoreNames.contains("stats")) db.createObjectStore("stats", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        checkProfileExists();
+    };
+
+    // Проверка, создан ли аккаунт малыша
+    function checkProfileExists() {
+        const tx = db.transaction("profile", "readonly");
+        tx.objectStore("profile").get("user").onsuccess = (e) => {
+            if (e.target.result) {
+                userProfile = e.target.result;
+                screenRegister.style.display = 'none';
+                loadTimeStats(); // Загружаем точную посекундную статистику
+            } else {
+                screenRegister.style.display = 'block';
+            }
+        };
+    }
+
+    // Обработка кнопки "ГОТОВО" (Создание профиля без паролей)
+    btnSaveProfile.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (!db) return;
+
+        const nameInput = document.getElementById('reg-name').value.trim();
+        if (!nameInput) {
+            alert('Пожалуйста, напиши своё имя! 🧒');
+            return;
+        }
+
+        userProfile = {
+            id: "user",
+            name: nameInput,
+            avatar: selectedAvatar
+        };
+
+        const tx = db.transaction("profile", "readwrite");
+        tx.objectStore("profile").put(userProfile);
+
+        tx.oncomplete = () => {
+            screenRegister.style.display = 'none';
+            loadTimeStats(); // Переходим к отображению времени
+        };
+    });
+
+    // Вспомогательная функция перевода секунд в формат "00м 00с"
+    function formatTime(totalSeconds) {
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return `${m}м ${s < 10 ? '0' : ''}${s}с`;
+    }
+    // Загрузка статистики времени игры (в секундах)
+    function loadTimeStats() {
+        const tx = db.transaction("stats", "readonly");
+        tx.objectStore("stats").get("timeData").onsuccess = (e) => {
+            const todayStr = new Date().toDateString();
+
+            if (e.target.result) {
+                timeStats = e.target.result;
+                
+                // Проверяем, наступили ли новые сутки
+                if (timeStats.lastDate !== todayStr) {
+                    timeStats.yesterdayTime = timeStats.todayTime;
+                    timeStats.todayTime = 0;
+                    timeStats.lastDate = todayStr;
+                    timeStats.hourlyLog = {};
+                }
+            } else {
+                // Создаём чистую посекундную статистику
+                timeStats = {
+                    id: "timeData",
+                    lastDate: todayStr,
+                    todayTime: 0,
+                    yesterdayTime: 0,
+                    hourlyLog: {},
+                    gamesLog: {}
+                };
+            }
+
+            // Показываем личный кабинет и запускаем живое обновление
+            showProfileData();
+            // Каждую секунду (1000 мс) обновляем цифры на экране, подтягивая их из базы
+            setInterval(refreshLiveScreen, 1000);
+        };
+    }
+
+    // Первоначальный вывод данных на экран
+    function showProfileData() {
+        document.getElementById('view-avatar').innerText = userProfile.avatar;
+        document.getElementById('view-name').innerText = userProfile.name.toUpperCase();
+        screenProfile.style.display = 'block';
+        refreshLiveScreen();
+    }
+
+    // Живое обновление цифр на экране каждую секунду
+    function refreshLiveScreen() {
+        if (!db) return;
+
+        // Открываем быструю транзакцию, чтобы считать свежие секунды, набежавшие из hub.html
+        const tx = db.transaction("stats", "readonly");
+        tx.objectStore("stats").get("timeData").onsuccess = (e) => {
+            if (!e.target.result) return;
+            timeStats = e.target.result;
+
+            const currentHour = new Date().getHours();
+            
+            // Считываем точные секунды
+            const hourSeconds = timeStats.hourlyLog[currentHour] || 0;
+            const todaySeconds = timeStats.todayTime || 0;
+            const yesterdaySeconds = timeStats.yesterdayTime || 0;
+
+            // Выводим отформатированные строки (минуты и секунды)
+            document.getElementById('time-hour').innerText = formatTime(hourSeconds);
+            document.getElementById('time-today').innerText = formatTime(todaySeconds);
+            document.getElementById('time-yesterday').innerText = formatTime(yesterdaySeconds);
+
+            // Обновляем список времени по каждой игре
+            gameStatsContainer.innerHTML = '';
+            for (const file in gameNames) {
+                const gameSeconds = timeStats.gamesLog[file] || 0;
+                
+                const row = document.createElement('div');
+                row.classList.add('stat-row');
+                row.innerHTML = `
+                    <div class="stat-lbl">
+                        <span>${gameNames[file].icon}</span>
+                        <span>${gameNames[file].name}:</span>
+                    </div>
+                    <div class="stat-val">${formatTime(gameSeconds)}</div>
+                `;
+                gameStatsContainer.appendChild(row);
+            }
+        };
+    }
+</script>
+</body>
+<a href="gamelaunch.html" style="position: absolute; top: 15px; left: 15px; z-index: 99999; text-decoration: none; font-size: 35px; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 50%; border: 3px solid #4db6ac; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">🏠</a>
+
+</html>

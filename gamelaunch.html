@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Детский Игровой Центр 🎈</title>
+    <style>
+        /* Сброс и оптимизация под тач планшета */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: linear-gradient(135deg, #e0f2f1, #fce4ec, #fff8e1);
+            font-family: 'Arial Black', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Верхняя панель заголовка */
+        .main-header {
+            text-align: center;
+            padding: 20px 10px 5px 10px;
+            position: relative;
+        }
+        .main-title {
+            font-size: 34px;
+            color: #2e7d32;
+            margin: 0;
+            text-shadow: 2px 2px 0px #fff, -2px -2px 0px #fff;
+        }
+
+        /* Контейнер-сетка для 10 карточек игр */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 25px;
+            padding: 20px 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            flex: 1;
+        }
+
+        /* Детская карточка игры */
+        .game-card {
+            background-color: #ffffff;
+            border-radius: 28px;
+            border: 5px solid #fff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.1s ease;
+            cursor: pointer;
+        }
+        .game-card:active {
+            transform: scale(0.93);
+        }
+
+        .game-icon {
+            font-size: 65px;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 5px 8px rgba(0,0,0,0.05));
+        }
+        .game-name {
+            font-size: 18px;
+            color: #333333;
+            font-weight: bold;
+        }
+
+        /* Яркие бортики карточек */
+        .card-1 { border-color: #ff5252; }
+        .card-2 { border-color: #ff9800; }
+        .card-3 { border-color: #e040fb; }
+        .card-4 { border-color: #4caf50; }
+        .card-5 { border-color: #00bcd4; }
+        .card-6 { border-color: #ff4081; }
+        .card-7 { border-color: #3f51b5; }
+        .card-8 { border-color: #9c27b0; }
+        .card-9 { border-color: #00e676; }
+        .card-10 { border-color: #00897b; }
+
+        /* Нижняя навигационная панель профиля (Видна только здесь!) */
+        .bottom-nav-bar {
+            width: 100%;
+            height: 90px;
+            background: linear-gradient(to top, #eceff1, #ffffff);
+            border-top: 4px solid #b0bec5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.03);
+        }
+        .nav-btn {
+            width: 100%;
+            max-width: 280px;
+            height: 55px;
+            border: none;
+            border-radius: 18px;
+            font-family: inherit;
+            font-size: 18px;
+            color: #fff;
+            background: linear-gradient(135deg, #42a5f5, #1e88e5);
+            box-shadow: 0 5px 10px rgba(30, 136, 229, 0.2), inset 0 -4px 0 rgba(0,0,0,0.12);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-btn:active { transform: scale(0.96); }
+    </style>
+</head>
+<body>
+
+<div class="main-header">
+    <h1 class="main-title">ИГРЫ ДЛЯ МАЛЫША 🌟</h1>
+</div>
+
+<div class="menu-grid">
+    <a href="game1.html" class="game-card card-1"><div class="game-icon">🎈🎈</div><div class="game-name">ЛОПНИ ШАРИК</div></a>
+    <a href="game2.html" class="game-card card-2"><div class="game-icon">🎹🎵</div><div class="game-name">ПИАНИНО</div></a>
+    <a href="game3.html" class="game-card card-3"><div class="game-icon">🎨✨</div><div class="game-name">РАДУЖНАЯ КИСТЬ</div></a>
+    <a href="game4.html" class="game-card card-4"><div class="game-icon">👾🍎</div><div class="game-name">ПОКОРМИ МОНСТРА</div></a>
+    <a href="game5.html" class="game-card card-5"><div class="game-icon">🐸🎪</div><div class="game-name">ВЕСЁЛЫЕ ПРЯТКИ</div></a>
+    <a href="game6.html" class="game-card card-6"><div class="game-icon">🧱💥</div><div class="game-name">КРУШИТЕЛЬ БАШНИ</div></a>
+    <a href="game7.html" class="game-card card-7"><div class="game-icon">☀️🌙</div><div class="game-name">ДЕНЬ И НОЧЬ</div></a>
+    <a href="game8.html" class="game-card card-8"><div class="game-icon">🧠🐼</div><div class="game-name">ВОЛШЕБНЫЕ ПАРЫ</div></a>
+    <a href="game9.html" class="game-card card-9"><div class="game-icon">✏️🆗</div><div class="game-name">МАЛЫШ АЛЬБОМ</div></a>
+    <a href="game10.html" class="game-card card-10"><div class="game-icon">🐰🥕</div><div class="game-name">КТО ЧТО ЕСТ?</div></a>
+</div>
+
+<!-- Панель профиля встроена прямо в низ меню -->
+<div class="bottom-nav-bar">
+    <button class="nav-btn" id="btnGoProfile">👑 Мой Профиль</button>
+</div>
+<script>
+    const btnGoProfile = document.getElementById('btnGoProfile');
+    let db = null;
+    let timeStats = null;
+    let secTimerId = null;
+
+    // Открываем единую базу данных профиля
+    const request = indexedDB.open("BabyProfileDB", 1);
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        
+        // Запускаем фоновый таймер на каждую секунду (1000 мс)
+        if (secTimerId) clearInterval(secTimerId);
+        secTimerId = setInterval(trackOneSecond, 1000);
+    };
+
+    // Функция, которая плавно начисляет чистые секунды в базу данных
+    function trackOneSecond() {
+        if (!db) return;
+
+        const tx = db.transaction("stats", "readwrite");
+        const store = tx.objectStore("stats");
+
+        store.get("timeData").onsuccess = (e) => {
+            const todayStr = new Date().toDateString();
+            const currentHour = new Date().getHours();
+
+            if (e.target.result) {
+                timeStats = e.target.result;
+                
+                // Автоматическая смена суток в полночь
+                if (timeStats.lastDate !== todayStr) {
+                    timeStats.yesterdayTime = timeStats.todayTime;
+                    timeStats.todayTime = 0;
+                    timeStats.lastDate = todayStr;
+                    timeStats.hourlyLog = {};
+                }
+            } else {
+                // Создаём новый чистый посекундный шаблон логов
+                timeStats = {
+                    id: "timeData",
+                    lastDate: todayStr,
+                    todayTime: 0,
+                    yesterdayTime: 0,
+                    hourlyLog: {},
+                    gamesLog: {} // Старый лог по играм очищен и больше не грузит память
+                };
+            }
+
+            // Плюсуем ровно 1 секунду к общему времени на сайте
+            timeStats.todayTime += 1;
+            timeStats.hourlyLog[currentHour] = (timeStats.hourlyLog[currentHour] || 0) + 1;
+
+            // Мгновенно сохраняем без задержек кадров
+            store.put(timeStats);
+        };
+    }
+
+    // Нежный звук клика при переходе в профиль
+    function playMenuTone(freq) {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } catch(err) {}
+    }
+
+    // Переход в окно профиля
+    btnGoProfile.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        playMenuTone(440.00);
+        
+        // Открываем профиль в этой же вкладке для экономии ресурсов планшета
+        window.location.href = 'profile.html';
+    });
+</script>
+</body>
+</html>

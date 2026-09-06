@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Радужная Рисовалка! ✨</title>
+    <style>
+        /* Полный сброс для работы тача на планшете */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0f19; /* Темный космический фон, чтобы радуга светилась */
+            font-family: 'Arial Black', sans-serif;
+        }
+        
+        /* Холст для рисования на весь экран */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+        }
+
+        /* Верхняя панель со звездами */
+        .top-panel {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .stars-counter {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            padding: 10px 30px;
+            border-radius: 25px;
+            border: 3px solid #ffeb3b;
+            font-size: 28px;
+            color: #fff;
+            text-shadow: 0 0 10px #ffeb3b, 2px 2px 2px #000;
+            box-shadow: 0 5px 15px rgba(255, 235, 59, 0.2);
+        }
+
+        /* Большая удобная кнопка СБРОС (Корзина) */
+        .clear-btn {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #ff1744, #d50000);
+            border: 4px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            box-shadow: 0 8px 20px rgba(255, 23, 68, 0.5), inset 0 -5px 10px rgba(0,0,0,0.3);
+            transition: transform 0.05s ease;
+        }
+        .clear-btn:active {
+            transform: scale(0.9);
+            background: linear-gradient(135deg, #d50000, #b71c1c);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Панель постоянного прогресса -->
+<div class="top-panel">
+    <div class="stars-counter" id="stars-display">✨ ЗВЁЗДЫ: 0</div>
+</div>
+
+<!-- Наш холст -->
+<canvas id="paintCanvas"></canvas>
+
+<!-- Кнопка очистки -->
+<div class="clear-btn" id="clearBtn">💥</div>
+<script>
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const starsDisplay = document.getElementById('stars-display');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let isPainting = false;
+    let hue = 0; // Для плавной смены цветов радуги
+    let starsCount = 0;
+    let db = null;
+    let hasDrawnInCurrentStroke = false; // Флаг, чтобы давать звезду только за реальное рисование
+
+    // Адаптируем холст под размер экрана планшета
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        // Восстанавливаем настройки кисти после ресайза
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 25; // Толстая, удобная кисть для малыша
+        // Эффект неонового свечения линий
+        ctx.shadowBlur = 15;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Подключение к IndexedDB для сохранения вечного прогресса звёздочек
+    const request = indexedDB.open("BabyPaintDB", 1);
+    request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        db.createObjectStore("progressData", { keyPath: "id" });
+    };
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        loadStars();
+    };
+
+    function saveStars() {
+        if (!db) return;
+        const tx = db.transaction("progressData", "readwrite");
+        const store = tx.objectStore("progressData");
+        store.put({ id: "stars", val: starsCount });
+    }
+
+    function loadStars() {
+        if (!db) return;
+        const tx = db.transaction("progressData", "readonly");
+        const store = tx.objectStore("progressData");
+        const getReq = store.get("stars");
+        getReq.onsuccess = () => {
+            if (getReq.result) {
+                starsCount = getReq.result.val;
+                starsDisplay.innerText = `✨ ЗВЁЗДЫ: ${starsCount}`;
+            }
+        };
+    }
+
+    // Громкий космический звук взрыва для кнопки «Сброс»
+    let audioCtx = null;
+    function playExplosionSound() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'sawtooth';
+        // Нисходящая частота делает звук падающей бомбочки/взрыва
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+        
+        gain.gain.setValueAtTime(0.9, audioCtx.currentTime); // Максимально громко
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    // Обработка рисования пальцем (Pointer Events работают идеально и на тачах)
+    function startPainting(e) {
+        isPainting = true;
+        hasDrawnInCurrentStroke = false;
+        ctx.beginPath();
+        ctx.moveTo(e.clientX, e.clientY);
+    }
+
+    function draw(e) {
+        if (!isPainting) return;
+        e.preventDefault();
+        hasDrawnInCurrentStroke = true;
+
+        // Меняем цвет на ходу для эффекта радуги
+        hue = (hue + 2) % 360;
+        const currentColor = `hsl(${hue}, 100%, 60%)`;
+        ctx.strokeStyle = currentColor;
+        ctx.shadowColor = currentColor; // Свечение в цвет линии
+
+        ctx.lineTo(e.clientX, e.clientY);
+        ctx.stroke();
+    }
+
+    function stopPainting() {
+        if (!isPainting) return;
+        isPainting = false;
+
+        // Если малыш реально нарисовал линию, а не просто тапнул — дарим звёздочку
+        if (hasDrawnInCurrentStroke) {
+            starsCount++;
+            starsDisplay.innerText = `✨ ЗВЁЗДЫ: ${starsCount}`;
+            saveStars();
+        }
+    }
+
+    // Слушатели событий на холсте
+    canvas.addEventListener('pointerdown', startPainting);
+    canvas.addEventListener('pointermove', draw);
+    canvas.addEventListener('pointerup', stopPainting);
+    canvas.addEventListener('pointerleave', stopPainting);
+    canvas.addEventListener('pointercancel', stopPainting);
+
+    // Очистка экрана кнопкой 💥
+    clearBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        playExplosionSound();
+        
+        // Красивое затухание старого рисунка перед полной очисткой
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+</script>
+</body>
+</html>
