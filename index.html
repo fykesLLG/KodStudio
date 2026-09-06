@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Игровой Хаб 🌟</title>
+    <style>
+        /* Полный сброс для планшетов */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f0f4f8;
+            font-family: 'Arial Black', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Зона для отображения игр (82% высоты экрана) */
+        .content-view {
+            width: 100%;
+            height: 82vh;
+            background-color: #fff;
+            position: relative;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* Нижняя фиксированная панель (18% высоты экрана) */
+        .bottom-nav-bar {
+            width: 100%;
+            height: 18vh;
+            background: linear-gradient(to top, #eceff1, #ffffff);
+            border-top: 5px solid #b0bec5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            padding: 10px 20px;
+            z-index: 10;
+            box-shadow: 0 -8px 20px rgba(0,0,0,0.04);
+        }
+
+        /* Большие сочные детские кнопки */
+        .nav-btn {
+            flex: 1;
+            max-width: 280px;
+            height: 75%;
+            border: none;
+            border-radius: 22px;
+            font-family: inherit;
+            font-size: 20px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.1s ease;
+        }
+        .nav-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-profile {
+            background: linear-gradient(135deg, #42a5f5, #1e88e5); /* Голубая кнопка */
+            box-shadow: 0 6px 12px rgba(30, 136, 229, 0.25), inset 0 -4px 0 rgba(0,0,0,0.15);
+        }
+        .btn-games {
+            background: linear-gradient(135deg, #66bb6a, #43a047); /* Зеленая кнопка */
+            box-shadow: 0 6px 12px rgba(67, 160, 71, 0.25), inset 0 -4px 0 rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Окно отображения контента -->
+<div class="content-view">
+    <iframe id="hubFrame" src="gamelaunch.html"></iframe>
+</div>
+
+<!-- Нижняя панель: Всего две чистые кнопки без родительского контроля -->
+<div class="bottom-nav-bar">
+    <button class="nav-btn btn-profile" id="btnGoProfile">
+        <span>👑</span> Мой Профиль
+    </button>
+    
+    <button class="nav-btn btn-games" id="btnGoGames" style="display: none;">
+        <span>🏠</span> Назад к играм
+    </button>
+</div>
+<script>
+    const hubFrame = document.getElementById('hubFrame');
+    const btnGoProfile = document.getElementById('btnGoProfile');
+    const btnGoGames = document.getElementById('btnGoGames');
+
+    let db = null;
+    let timeStats = null;
+    let secTimerId = null;
+
+    const gameFiles = ['game1.html', 'game2.html', 'game3.html', 'game4.html', 'game5.html', 'game6.html', 'game7.html', 'game8.html', 'game9.html', 'game10.html'];
+
+    // Открываем базу данных
+    const request = indexedDB.open("BabyProfileDB", 1);
+    request.onsuccess = (e) => {
+        db = e.target.result;
+        // Запускаем таймер на каждую секунду (1000 мс)
+        if (secTimerId) clearInterval(secTimerId);
+        secTimerId = setInterval(trackOneSecond, 1000);
+    };
+
+    // Функция, которая тикает каждую секунду и начисляет время
+    function trackOneSecond() {
+        if (!db) return;
+
+        const tx = db.transaction("stats", "readwrite");
+        const store = tx.objectStore("stats");
+
+        store.get("timeData").onsuccess = (e) => {
+            const todayStr = new Date().toDateString();
+            const currentHour = new Date().getHours();
+
+            if (e.target.result) {
+                timeStats = e.target.result;
+                // Смена суток
+                if (timeStats.lastDate !== todayStr) {
+                    timeStats.yesterdayTime = timeStats.todayTime;
+                    timeStats.todayTime = 0;
+                    timeStats.lastDate = todayStr;
+                    timeStats.hourlyLog = {};
+                }
+            } else {
+                timeStats = {
+                    id: "timeData",
+                    lastDate: todayStr,
+                    todayTime: 0,
+                    yesterdayTime: 0,
+                    hourlyLog: {},
+                    gamesLog: {}
+                };
+            }
+
+            // Добавляем 1 секунду к общему времени
+            timeStats.todayTime += 1;
+            timeStats.hourlyLog[currentHour] = (timeStats.hourlyLog[currentHour] || 0) + 1;
+
+            // Проверяем, запущена ли сейчас игра внутри iframe, и начисляем секунды ей
+            try {
+                const currentUrl = hubFrame.contentWindow.location.pathname;
+                const currentFile = currentUrl.substring(currentUrl.lastIndexOf('/') + 1);
+
+                if (gameFiles.includes(currentFile)) {
+                    timeStats.gamesLog[currentFile] = (timeStats.gamesLog[currentFile] || 0) + 1;
+                }
+            } catch (err) {}
+
+            // Сохраняем обновленные секунды обратно в базу
+            store.put(timeStats);
+        };
+    }
+
+    // Мягкий клик кнопок панели
+    function playClickTone(freq) {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } catch(e) {}
+    }
+
+    // Кнопка: Открыть Профиль
+    btnGoProfile.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        playClickTone(440.00);
+        hubFrame.src = 'profile.html';
+        btnGoProfile.style.display = 'none';
+        btnGoGames.style.display = 'flex';
+    });
+
+    // Кнопка: Назад к играм
+    btnGoGames.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        playClickTone(523.25);
+        hubFrame.src = 'gamelaunch.html';
+        btnGoProfile.style.display = 'flex';
+        btnGoGames.style.display = 'none';
+    });
+</script>
+</body>
+</html>
